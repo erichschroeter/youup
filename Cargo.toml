@@ -1,8 +1,10 @@
 [package]
 name = "youup"
 version = "0.1.0"
+authors = ["Erich Schroeter <erich.schroeter+rust@example.com"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+tokio = { version = "1.26.0", features = ["net", "time", "macros", "rt-multi-thread"] }
