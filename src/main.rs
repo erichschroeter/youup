@@ -1,8 +1,15 @@
 
+use std::env;
 use std::net::SocketAddr;
+use std::path::{PathBuf, Path};
+use clap::__macro_refs::once_cell::sync::Lazy;
+use clap::{value_parser, Arg, command};
 use surge_ping::IcmpPacket;
 use tokio::net::TcpStream;
 use tokio::time::{sleep, Duration};
+
+static DEFAULT_CONFIG_FILE: Lazy<PathBuf> = Lazy::new(||{dirs::home_dir().unwrap().join(".config").join("youup").join("default.toml")});
+
 
 async fn is_ping(addr: SocketAddr) -> bool {
     // let payload = [0];
@@ -44,6 +51,32 @@ async fn is_server_up(addr: SocketAddr) -> bool {
 
 #[tokio::main]
 async fn main() {
+    std::env::set_var("RUST_LOG", "actix_web=debug");
+    std::env::set_var("RUST_LOG", "trace");
+    // std::env::set_var("RUST_BACKTRACE", "1");
+    env_logger::init();
+    log::error!("ERROR");
+    log::warn!("WARN");
+    log::info!("INFO");
+    log::debug!("DEBUG");
+    log::trace!("TRACE");
+
+    // requires `cargo` feature, reading name, version, author, and description from `Cargo.toml`
+    let matches = command!()
+        .arg(
+            Arg::new("config")
+                .short('c')
+                .long("config")
+                .help("Path to the configuration file")
+                .value_parser(value_parser!(PathBuf))
+                .default_value(DEFAULT_CONFIG_FILE.to_str().unwrap()),
+        )
+        .get_matches();
+    log::info!(
+        "config={:?}",
+        matches.get_one::<String>("config")
+    );
+
     let addr = "127.0.0.1:8080".parse().unwrap(); // replace with your server address
     // let is_up = is_server_up(addr).await;
     let is_up = is_ping(addr).await;
@@ -52,4 +85,5 @@ async fn main() {
     } else {
         println!("Server {addr} is not up");
     }
+
 }
