@@ -7,6 +7,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = "0.1.68"
 clap = { version = "4.1.13", features = ["cargo"] }
 config = "0.13.3"
 dirs = "5.0.0"
@@ -14,3 +15,7 @@ env_logger = "0.10.0"
 log = "0.4.17"
 surge-ping = "0.7.3"
 tokio = { version = "1.26.0", features = ["net", "time", "macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+mockall = "0.11.4"
+tokio-test = "0.4.2"
