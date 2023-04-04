@@ -1,19 +1,24 @@
-
+use async_trait::async_trait;
+use clap::__macro_refs::once_cell::sync::Lazy;
+use clap::{command, value_parser, Arg};
+use config::{Config, File, FileFormat};
+#[cfg(test)]
+use mockall::mock;
 use std::collections::HashMap;
 use std::env;
 use std::net::SocketAddr;
-use std::path::{PathBuf, Path};
-use async_trait::async_trait;
-use clap::__macro_refs::once_cell::sync::Lazy;
-use clap::{value_parser, Arg, command};
-use config::Config;
-use mockall::mock;
+use std::path::{Path, PathBuf};
 use surge_ping::IcmpPacket;
 use tokio::net::TcpStream;
 use tokio::time::{sleep, Duration};
 
-static DEFAULT_CONFIG_FILE: Lazy<PathBuf> = Lazy::new(||{dirs::home_dir().unwrap().join(".config").join("youup").join("default.toml")});
-
+static DEFAULT_CONFIG_FILE: Lazy<PathBuf> = Lazy::new(|| {
+    dirs::home_dir()
+        .unwrap()
+        .join(".config")
+        .join("youup")
+        .join("default.toml")
+});
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PingError {
@@ -58,7 +63,8 @@ impl Pingable for IcmpDest {
         self.cache.clone()
     }
 }
-    
+
+#[cfg(test)]
 mock! {
     pub MockIcmpDest {}
 
@@ -126,9 +132,7 @@ mod tests {
         #[test]
         fn ping_returns_error() {
             let mut pinger = MockMockIcmpDest::new();
-            pinger.expect_ping().returning(|| {
-                Err(PingError::IcmpError)
-            });
+            pinger.expect_ping().returning(|| Err(PingError::IcmpError));
             // let pinger = IcmpDest::default();
             let res = block_on(pinger.ping());
             assert_eq!(PingError::IcmpError, res.err().unwrap());
@@ -137,12 +141,10 @@ mod tests {
         #[test]
         fn cache_returns_most_recent_result() {
             let mut pinger = MockMockIcmpDest::new();
-            pinger.expect_ping().returning(|| {
-                Ok(true)
-            });
-            pinger.expect_cache().returning(|| {
-                Err(PingError::IcmpError)
-            });
+            pinger.expect_ping().returning(|| Ok(true));
+            pinger
+                .expect_cache()
+                .returning(|| Err(PingError::IcmpError));
             // let pinger = IcmpDest::default();
             let res = block_on(pinger.ping());
             assert_eq!(PingError::IcmpError, res.err().unwrap());
@@ -154,7 +156,7 @@ mod tests {
 #[tokio::main]
 async fn main() {
     std::env::set_var("RUST_LOG", "trace");
-    // std::env::set_var("RUST_BACKTRACE", "1");
+    std::env::set_var("RUST_BACKTRACE", "full");
     env_logger::init();
     log::error!("ERROR");
     log::warn!("WARN");
@@ -174,23 +176,42 @@ async fn main() {
                 .default_value(DEFAULT_CONFIG_FILE.to_str().unwrap()),
         )
         .get_matches();
+    let config_path = matches.get_one::<PathBuf>("config").unwrap();
     log::info!(
-        "config={:?}",
-        matches.get_one::<String>("config")
+        "--config={}",
+        config_path.display() // matches.get_one::<PathBuf>("config").unwrap().display()
     );
-    
-    let cfg = Config::builder().build().unwrap();
-    log::info!("{:?}", cfg.try_deserialize::<HashMap<String, String>>().unwrap());
+
+    let cfg = Config::builder()
+        .add_source(File::new(
+            config_path.as_os_str().to_str().unwrap(),
+            FileFormat::Json5,
+        ))
+        .build();
+    let cfg = match cfg {
+        Ok(cfg) => {
+            let cfg = cfg.try_deserialize::<HashMap<String, String>>().unwrap();
+            log::info!("Config: {:?}", &cfg);
+            cfg
+        }
+        Err(e) => {
+            log::error!("Failed to read config file: {}", config_path.display());
+            unimplemented!();
+            // return Ok(1);
+            // return Ok(());
+        }
+    };
 
     let addr = "127.0.0.1:8080".parse().unwrap(); // replace with your server address
     let pinger = IcmpDest::new(addr); // replace with your server address
-    // let is_up = is_server_up(addr).await;
-    // let is_up = is_ping(addr).await;
+                                      // let is_up = is_server_up(addr).await;
+                                      // let is_up = is_ping(addr).await;
     let is_up = pinger.ping().await;
-    if is_up.unwrap() {
+    if is_up.is_ok() && is_up.unwrap() {
         println!("Server {addr} is up");
     } else {
         println!("Server {addr} is not up");
     }
 
+    // Ok(())
 }
